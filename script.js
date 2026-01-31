@@ -56,7 +56,7 @@
     }
 
     function showClosedAlert() {
-      window.alert("We accept delivery orders only between 8:00 AM and 9:00 PM. Please place your order during open hours.");
+      window.alert("Orders are accepted only between 8 AM and 9 PM. Before 8 AM and after 9 PM we cannot receive orders.");
     }
 
     if (upiIdTextElement) {
