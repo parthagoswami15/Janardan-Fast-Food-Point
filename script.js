@@ -51,24 +51,8 @@
         subtotal += price * qty;
       });
 
-      // Delivery charge rules
-      // Minimum order: ₹99 for delivery
-      // If 99 <= subtotal <= 499: delivery charge ₹20
-      // If subtotal >= 500: free delivery
-      // Otherwise (subtotal < 99): no delivery / not allowed
-
+      // Delivery is now always free once minimum order is met. Keep deliveryCharge for consistency.
       var deliveryCharge = 0;
-
-      if (subtotal > 0 && subtotal < 99) {
-        // Below minimum – keep delivery 0 but we will block in click handler.
-        deliveryCharge = 0;
-      } else if (subtotal >= 99 && subtotal <= 499) {
-        // From ₹99 up to ₹499: flat ₹20 delivery charge.
-        deliveryCharge = 20;
-      } else if (subtotal >= 500) {
-        // ₹500 and above: free delivery.
-        deliveryCharge = 0;
-      }
 
       var grandTotal = subtotal + deliveryCharge;
       totalElement.textContent = "₹" + grandTotal;
