@@ -26,6 +26,7 @@
     var upiPayButton = document.getElementById("upi-pay-button");
     var UPI_ID = "7074614061.etb@icici";
     var hasAttemptedUpiPayment = false;
+    var currentOfferAlertKey = null;
 
     if (!itemElements.length || !totalElement || !whatsappButton) {
       // Basic safety check – if structure is missing, do nothing.
@@ -51,10 +52,17 @@
         subtotal += price * qty;
       });
 
-      // Delivery is now always free once minimum order is met. Keep deliveryCharge for consistency.
+      // Delivery is free once minimum order is met. Calculate promotional discounts.
       var deliveryCharge = 0;
+      var discount = 0;
 
-      var grandTotal = subtotal + deliveryCharge;
+      if (subtotal > 500) {
+        discount = 50;
+      } else if (subtotal > 300) {
+        discount = 20;
+      }
+
+      var grandTotal = Math.max(subtotal + deliveryCharge - discount, 0);
       totalElement.textContent = "₹" + grandTotal;
 
       if (upiAmountElement) {
@@ -63,8 +71,49 @@
       return {
         subtotal: subtotal,
         deliveryCharge: deliveryCharge,
+        discount: discount,
         grandTotal: grandTotal,
       };
+    }
+
+    function getOfferKey(totals) {
+      if (!totals) return null;
+      return [totals.subtotal, totals.discount].join(":");
+    }
+
+    function maybeShowOfferAlert(totals) {
+      if (!totals) return;
+      var hasDiscount = totals.discount > 0;
+      var qualifiesFreeDrink = totals.subtotal > 500;
+
+      if (!hasDiscount && !qualifiesFreeDrink) {
+        currentOfferAlertKey = null;
+        return;
+      }
+
+      var offerKey = getOfferKey(totals);
+      if (offerKey && offerKey === currentOfferAlertKey) {
+        return;
+      }
+      currentOfferAlertKey = offerKey;
+
+      var messageParts = [];
+      if (totals.subtotal > 500) {
+        messageParts.push(
+          "Offer unlocked: ₹50 OFF on orders above ₹500! Your payable total already includes this discount."
+        );
+        messageParts.push(
+          "Bonus: If you happen to be today's first ₹500+ delivery customer, mention it on WhatsApp to claim a FREE cold drink."
+        );
+      } else if (totals.subtotal > 300) {
+        messageParts.push(
+          "Offer unlocked: ₹20 OFF on orders above ₹300! Your payable total already includes this discount."
+        );
+      }
+
+      if (messageParts.length) {
+        window.alert(messageParts.join("\n\n"));
+      }
     }
 
     function createUpiPaymentLink(amount) {
@@ -187,8 +236,13 @@
           "\n\nOrder details:\n" +
           lines.join("\n") +
           "\n\nSubtotal: ₹" + subtotal +
-          "\nDelivery charge: ₹" + totals.deliveryCharge +
-          "\nTotal payable: ₹" + totals.grandTotal;
+          "\nDelivery charge: ₹" + totals.deliveryCharge;
+
+        if (totals.discount > 0) {
+          baseSection += "\nOffer discount: −₹" + totals.discount;
+        }
+
+        baseSection += "\nTotal payable: ₹" + totals.grandTotal;
 
         var paymentSection;
         if (paymentMethodValue === "COD") {
@@ -205,7 +259,13 @@
             "\n- UPI to " + UPI_ID;
         }
 
-        body = baseSection + paymentSection;
+        var offerNotes = "";
+        if (totals.subtotal > 500) {
+          offerNotes =
+            "\n\nSpecial note: You also unlocked a free cold drink if you're today's first ₹500+ delivery customer. Mention it in WhatsApp to claim!";
+        }
+
+        body = baseSection + paymentSection + offerNotes;
       } else {
         body =
           "\n\nI would like to place an order. Please share today\'s menu.";
@@ -235,6 +295,8 @@
         );
         return;
       }
+
+      maybeShowOfferAlert(totals);
 
       if (orderDetailsModal && orderDetailsForm) {
         openOrderDetailsModal();
