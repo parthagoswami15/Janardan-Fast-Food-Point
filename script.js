@@ -48,6 +48,17 @@
       return;
     }
 
+    function isWithinOpenHours() {
+      var now = new Date();
+      var hour = now.getHours();
+      // Open 8:00 (inclusive) to 21:00 (exclusive)
+      return hour >= 8 && hour < 21;
+    }
+
+    function showClosedAlert() {
+      window.alert("We accept delivery orders only between 8:00 AM and 9:00 PM. Please place your order during open hours.");
+    }
+
     if (upiIdTextElement) {
       upiIdTextElement.textContent = UPI_ID;
     }
@@ -327,6 +338,10 @@
      * Opens WhatsApp with a pre-filled message.
      */
     whatsappButton.addEventListener("click", function () {
+      if (!isWithinOpenHours()) {
+        showClosedAlert();
+        return;
+      }
       var totals = recalculateTotal();
       var payload = buildWhatsAppMessage();
 
@@ -368,6 +383,10 @@
 
     if (upiPayButton) {
       upiPayButton.addEventListener("click", function () {
+        if (!isWithinOpenHours()) {
+          showClosedAlert();
+          return;
+        }
         var totals = recalculateTotal();
         var payload = buildWhatsAppMessage();
 
@@ -406,6 +425,11 @@
     if (orderDetailsForm) {
       orderDetailsForm.addEventListener("submit", function (event) {
         event.preventDefault();
+
+        if (!isWithinOpenHours()) {
+          showClosedAlert();
+          return;
+        }
 
         var name = inputName ? inputName.value.trim() : "";
         var phone = inputPhone ? inputPhone.value.trim() : "";
