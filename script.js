@@ -27,6 +27,19 @@
     var UPI_ID = "7074614061.etb@icici";
     var hasAttemptedUpiPayment = false;
     var currentOfferAlertKey = null;
+    var currentDaySlug = (function () {
+      var dayIndex = new Date().getDay();
+      var days = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ];
+      return days[dayIndex] || "";
+    })();
 
     if (!itemElements.length || !totalElement || !whatsappButton) {
       // Basic safety check – if structure is missing, do nothing.
@@ -179,6 +192,7 @@
       var minusBtn = item.querySelector(".btn-qty.minus");
       var plusBtn = item.querySelector(".btn-qty.plus");
       var qtyElement = item.querySelector(".quantity-value");
+      var availableDay = (item.getAttribute("data-available-day") || "").toLowerCase();
 
       if (!minusBtn || !plusBtn || !qtyElement) {
         return;
@@ -193,6 +207,15 @@
       });
 
       plusBtn.addEventListener("click", function () {
+        if (availableDay && availableDay !== currentDaySlug) {
+          window.alert(
+            "This item is only available on " +
+              availableDay.charAt(0).toUpperCase() +
+              availableDay.slice(1) +
+              ". Please order it on that day."
+          );
+          return;
+        }
         var current = parseInt(qtyElement.textContent, 10) || 0;
         // You can enforce a sensible upper limit if needed.
         qtyElement.textContent = String(current + 1);
