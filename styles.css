@@ -508,6 +508,23 @@ body {
   height: 0.9rem;
 }
 
+.upi-proof-row {
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.upi-proof-row.is-visible {
+  display: flex;
+}
+
+.upi-proof-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
 .payment-section {
   margin-top: 0.4rem;
   padding: 0.6rem 0.7rem;

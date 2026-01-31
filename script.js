@@ -27,6 +27,8 @@
     var UPI_ID = "7074614061.etb@icici";
     var hasAttemptedUpiPayment = false;
     var currentOfferAlertKey = null;
+    var upiProofRow = document.getElementById("upi-proof-row");
+    var upiProofInput = document.getElementById("upi-proof");
     var currentDaySlug = (function () {
       var dayIndex = new Date().getDay();
       var days = [
@@ -64,6 +66,15 @@
         var qty = parseInt(qtyElement.textContent, 10) || 0;
         subtotal += price * qty;
       });
+
+    var paymentMethodInputs = document.querySelectorAll('input[name="payment-method"]');
+    paymentMethodInputs.forEach(function (input) {
+      input.addEventListener("change", function () {
+        syncUpiProofVisibility();
+      });
+    });
+
+    syncUpiProofVisibility();
 
       // Delivery is free once minimum order is met. Calculate promotional discounts.
       var deliveryCharge = 0;
@@ -164,6 +175,19 @@
         return "UPI";
       }
       return "COD";
+    }
+
+    function syncUpiProofVisibility() {
+      if (!upiProofRow) return;
+      var method = getSelectedPaymentMethod();
+      if (method === "UPI") {
+        upiProofRow.classList.add("is-visible");
+      } else {
+        upiProofRow.classList.remove("is-visible");
+        if (upiProofInput) {
+          upiProofInput.value = "";
+        }
+      }
     }
 
     function openOrderDetailsModal() {
@@ -394,6 +418,11 @@
         }
 
         var paymentMethodValue = getSelectedPaymentMethod();
+        if (paymentMethodValue === "UPI" && upiProofInput && !upiProofInput.files.length) {
+          window.alert("Please upload your UPI payment screenshot before submitting the order.");
+          upiProofInput.focus();
+          return;
+        }
         var payload = buildWhatsAppMessage(paymentMethodValue);
         var paymentMethodText =
           paymentMethodValue === "UPI" ? "UPI (online)" : "Cash on delivery";
@@ -405,6 +434,11 @@
           "\nAddress: " + address +
           "\nNearby location: " + (nearby || "[Not provided]") +
           "\nPreferred payment: " + paymentMethodText;
+
+        if (paymentMethodValue === "UPI") {
+          detailsText +=
+            "\nUPI proof: Attached in form. Please confirm after verifying the screenshot in WhatsApp.";
+        }
 
         if (hasAttemptedUpiPayment) {
           window.alert(
