@@ -103,7 +103,7 @@
           "Offer unlocked: ₹50 OFF on orders above ₹500! Your payable total already includes this discount."
         );
         messageParts.push(
-          "Bonus: If you happen to be today's first ₹500+ delivery customer, mention it on WhatsApp to claim a FREE cold drink."
+          "You just WON a FREE cold drink for being today's first ₹500+ delivery customer (subject to availability) – mention it on WhatsApp when sharing your order!"
         );
       } else if (totals.subtotal > 300) {
         messageParts.push(
