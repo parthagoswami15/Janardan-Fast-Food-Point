@@ -29,6 +29,11 @@
     var currentOfferAlertKey = null;
     var upiProofRow = document.getElementById("upi-proof-row");
     var upiProofInput = document.getElementById("upi-proof");
+    var dailyViewCountElement = document.getElementById("daily-view-count");
+    var dailyViewDateElement = document.getElementById("daily-view-date");
+    var paymentMethodInputs = Array.prototype.slice.call(
+      document.querySelectorAll('input[name="payment-method"]')
+    );
     var currentDaySlug = (function () {
       var dayIndex = new Date().getDay();
       var days = [
@@ -77,15 +82,6 @@
         var qty = parseInt(qtyElement.textContent, 10) || 0;
         subtotal += price * qty;
       });
-
-    var paymentMethodInputs = document.querySelectorAll('input[name="payment-method"]');
-    paymentMethodInputs.forEach(function (input) {
-      input.addEventListener("change", function () {
-        syncUpiProofVisibility();
-      });
-    });
-
-    syncUpiProofVisibility();
 
       // Delivery is free once minimum order is met. Calculate promotional discounts.
       var deliveryCharge = 0;
@@ -287,7 +283,6 @@
 
       var body;
       var totals = recalculateTotal();
-      var paymentLink = createUpiPaymentLink(totals.grandTotal);
 
       if (lines.length) {
         var baseSection =
@@ -333,11 +328,29 @@
       return { message: message, subtotal: subtotal, lines: lines };
     }
 
-    /**
-     * Handle WhatsApp order button click.
-     * Opens WhatsApp with a pre-filled message.
-     */
-    whatsappButton.addEventListener("click", function () {
+    paymentMethodInputs.forEach(function (input) {
+      input.addEventListener("change", syncUpiProofVisibility);
+    });
+
+    syncUpiProofVisibility();
+    updateDailyViewDateDisplay();
+    fetchDailyViews();
+
+    whatsappButton.addEventListener("click", handleWhatsAppButtonClick);
+
+    if (orderDetailsCancel) {
+      orderDetailsCancel.addEventListener("click", closeOrderDetailsModal);
+    }
+
+    if (upiPayButton) {
+      upiPayButton.addEventListener("click", handleUpiPayClick);
+    }
+
+    if (orderDetailsForm) {
+      orderDetailsForm.addEventListener("submit", handleOrderDetailsSubmit);
+    }
+
+    function handleWhatsAppButtonClick() {
       if (!isWithinOpenHours()) {
         showClosedAlert();
         return;
@@ -346,7 +359,6 @@
       var payload = buildWhatsAppMessage();
 
       if (!payload.lines.length) {
-        // Encourage the user to pick items first.
         window.alert("Please select at least one item before placing your order.");
         return;
       }
@@ -365,121 +377,179 @@
         return;
       }
 
-      var phoneNumber = "917908789954"; // Replace with restaurant's WhatsApp number
       var url =
         "https://wa.me/" +
-        encodeURIComponent(phoneNumber) +
+        encodeURIComponent("917908789954") +
         "?text=" +
         encodeURIComponent(payload.message);
-
       window.open(url, "_blank");
-    });
-
-    if (orderDetailsCancel) {
-      orderDetailsCancel.addEventListener("click", function () {
-        closeOrderDetailsModal();
-      });
     }
 
-    if (upiPayButton) {
-      upiPayButton.addEventListener("click", function () {
-        if (!isWithinOpenHours()) {
-          showClosedAlert();
-          return;
-        }
-        var totals = recalculateTotal();
-        var payload = buildWhatsAppMessage();
+    function handleUpiPayClick() {
+      if (!isWithinOpenHours()) {
+        showClosedAlert();
+        return;
+      }
+      var totals = recalculateTotal();
+      var payload = buildWhatsAppMessage();
 
-        if (!payload.lines.length) {
-          window.alert("Please select at least one item before paying with UPI.");
-          return;
-        }
+      if (!payload.lines.length) {
+        window.alert("Please select at least one item before paying with UPI.");
+        return;
+      }
 
-        if (totals.subtotal < 99) {
-          window.alert(
-            "Sorry, we cannot take orders below ₹99 for delivery. Please add more items before paying."
-          );
-          return;
-        }
-
-        if (!isMobileDevice()) {
-          window.alert(
-            "UPI payment link can only open in a UPI app on your phone.\n\n" +
-              "Please open this page on your mobile device, or scan the QR code below with your UPI app to pay."
-          );
-          return;
-        }
-
-        hasAttemptedUpiPayment = true;
-
-        var link = createUpiPaymentLink(totals.grandTotal);
+      if (totals.subtotal < 99) {
         window.alert(
-          "We will now open your UPI app with total ₹" +
-            totals.grandTotal +
-            ".\n\nAfter completing the payment, please return to this page and tap 'Continue to WhatsApp' to send your order details."
+          "Sorry, we cannot take orders below ₹99 for delivery. Please add more items before paying."
         );
-        window.location.href = link;
-      });
+        return;
+      }
+
+      if (!isMobileDevice()) {
+        window.alert(
+          "UPI payment link can only open in a UPI app on your phone.\n\n" +
+            "Please open this page on your mobile device, or scan the QR code below with your UPI app to pay."
+        );
+        return;
+      }
+
+      hasAttemptedUpiPayment = true;
+
+      var link = createUpiPaymentLink(totals.grandTotal);
+      window.alert(
+        "We will now open your UPI app with total ₹" +
+          totals.grandTotal +
+          ".\n\nAfter completing the payment, please return to this page and tap 'Continue to WhatsApp' to send your order details."
+      );
+      window.location.href = link;
     }
 
-    if (orderDetailsForm) {
-      orderDetailsForm.addEventListener("submit", function (event) {
-        event.preventDefault();
+    function handleOrderDetailsSubmit(event) {
+      event.preventDefault();
 
-        if (!isWithinOpenHours()) {
-          showClosedAlert();
-          return;
-        }
+      if (!isWithinOpenHours()) {
+        showClosedAlert();
+        return;
+      }
 
-        var name = inputName ? inputName.value.trim() : "";
-        var phone = inputPhone ? inputPhone.value.trim() : "";
-        var address = inputAddress ? inputAddress.value.trim() : "";
-        var nearby = inputNearby ? inputNearby.value.trim() : "";
+      var paymentMethod = getSelectedPaymentMethod();
+      var totals = recalculateTotal();
+      var payload = buildWhatsAppMessage(paymentMethod);
 
-        if (!phone || !address) {
-          window.alert("Please enter your phone number and full address.");
-          return;
-        }
+      if (!payload.lines.length) {
+        window.alert("Please select at least one item before sending your order.");
+        return;
+      }
 
-        var paymentMethodValue = getSelectedPaymentMethod();
-        if (paymentMethodValue === "UPI" && upiProofInput && !upiProofInput.files.length) {
-          window.alert("Please upload your UPI payment screenshot before submitting the order.");
-          upiProofInput.focus();
-          return;
-        }
-        var payload = buildWhatsAppMessage(paymentMethodValue);
-        var paymentMethodText =
-          paymentMethodValue === "UPI" ? "UPI (online)" : "Cash on delivery";
+      if (totals.subtotal < 99) {
+        window.alert("Sorry, delivery orders must be at least ₹99. Please add more items.");
+        return;
+      }
 
-        var detailsText =
-          "\n\nCustomer details:" +
-          "\nName: " + (name || "[Not provided]") +
-          "\nPhone: " + phone +
-          "\nAddress: " + address +
-          "\nNearby location: " + (nearby || "[Not provided]") +
-          "\nPreferred payment: " + paymentMethodText;
+      var name = inputName ? inputName.value.trim() : "";
+      var phone = inputPhone ? inputPhone.value.trim() : "";
+      var address = inputAddress ? inputAddress.value.trim() : "";
+      var nearby = inputNearby ? inputNearby.value.trim() : "";
 
-        if (paymentMethodValue === "UPI") {
-          detailsText +=
-            "\nUPI proof: Attached in form. Please confirm after verifying the screenshot in WhatsApp.";
-        }
+      if (!phone || !address) {
+        window.alert("Please enter your phone number and full address.");
+        return;
+      }
 
-        if (hasAttemptedUpiPayment) {
-          window.alert(
-            "Thank you! If your UPI payment was successful, please mention 'Paid via UPI' in WhatsApp. Your order details will now be sent."
-          );
-        }
+      if (paymentMethod === "UPI" && upiProofInput && (!upiProofInput.files || !upiProofInput.files.length)) {
+        window.alert("Please upload your UPI payment screenshot before submitting.");
+        return;
+      }
 
-        var phoneNumber = "917908789954"; // Replace with restaurant's WhatsApp number
-        var url =
-          "https://wa.me/" +
-          encodeURIComponent(phoneNumber) +
-          "?text=" +
-          encodeURIComponent(payload.message + detailsText);
+      var customerDetails = [];
+      if (name) {
+        customerDetails.push("Name: " + name);
+      }
+      customerDetails.push("Phone: " + phone);
+      customerDetails.push("Address: " + address);
+      if (nearby) {
+        customerDetails.push("Nearby landmark: " + nearby);
+      }
+      customerDetails.push(
+        "Payment method: " + (paymentMethod === "UPI" ? "UPI (online)" : "Cash on delivery")
+      );
+      if (paymentMethod === "UPI") {
+        customerDetails.push("UPI proof: Uploaded via website – will attach same screenshot on WhatsApp.");
+      } else {
+        customerDetails.push("UPI proof: Not required (COD).");
+      }
 
-        window.open(url, "_blank");
-        closeOrderDetailsModal();
-      });
+      var finalMessage = payload.message + "\n\nCustomer details:\n" + customerDetails.join("\n");
+
+      if (paymentMethod === "UPI") {
+        finalMessage += "\n\nRestaurant note: Please confirm the UPI payment screenshot in chat.";
+      }
+
+      if (hasAttemptedUpiPayment) {
+        window.alert(
+          "Thanks for trying to pay via UPI! Please remember to share the payment screenshot in WhatsApp when prompted."
+        );
+      }
+
+      var url =
+        "https://wa.me/" +
+        encodeURIComponent("917908789954") +
+        "?text=" +
+        encodeURIComponent(finalMessage);
+      window.open(url, "_blank");
+
+      closeOrderDetailsModal();
+      if (orderDetailsForm) {
+        orderDetailsForm.reset();
+      }
+      syncUpiProofVisibility();
+      hasAttemptedUpiPayment = false;
     }
+
+    function getTodayKey() {
+      var now = new Date();
+      var year = now.getFullYear();
+      var month = String(now.getMonth() + 1).padStart(2, "0");
+      var day = String(now.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
+    function updateDailyViewDateDisplay() {
+      if (!dailyViewDateElement) return;
+      var now = new Date();
+      var options = { day: "numeric", month: "short", year: "numeric" };
+      dailyViewDateElement.textContent = now.toLocaleDateString(undefined, options);
+    }
+
+    function fetchDailyViews() {
+      if (!dailyViewCountElement) {
+        return;
+      }
+
+      var namespace = "janardan-fast-food-point";
+      var key = "daily-" + getTodayKey();
+      var url = "https://api.countapi.xyz/hit/" + namespace + "/" + key;
+
+      fetch(url)
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return response.json();
+        })
+        .then(function (data) {
+          if (typeof data.value === "number") {
+            dailyViewCountElement.textContent = data.value;
+          } else {
+            dailyViewCountElement.textContent = "--";
+          }
+        })
+        .catch(function () {
+          if (dailyViewCountElement) {
+            dailyViewCountElement.textContent = "--";
+          }
+        });
+    }
+
   });
 })();
