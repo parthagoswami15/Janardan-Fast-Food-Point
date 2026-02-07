@@ -523,6 +523,7 @@
 
     function fetchDailyViews() {
       if (!dailyViewCountElement) {
+        console.error("Daily view count element not found");
         return;
       }
 
@@ -530,21 +531,28 @@
       var key = "daily-" + getTodayKey();
       var url = "https://api.countapi.xyz/hit/" + namespace + "/" + key;
 
+      console.log("Fetching daily views from:", url);
+
       fetch(url)
         .then(function (response) {
+          console.log("Response status:", response.status);
           if (!response.ok) {
             throw new Error("Network response was not ok");
           }
           return response.json();
         })
         .then(function (data) {
+          console.log("CountAPI response:", data);
           if (typeof data.value === "number") {
             dailyViewCountElement.textContent = data.value;
+            console.log("Updated daily view count to:", data.value);
           } else {
             dailyViewCountElement.textContent = "--";
+            console.warn("Unexpected data format:", data);
           }
         })
-        .catch(function () {
+        .catch(function (err) {
+          console.error("Failed to fetch daily views:", err);
           if (dailyViewCountElement) {
             dailyViewCountElement.textContent = "--";
           }
