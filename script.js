@@ -328,6 +328,11 @@
       return { message: message, subtotal: subtotal, lines: lines };
     }
 
+    console.log("Daily view elements found:", {
+      countElement: !!dailyViewCountElement,
+      dateElement: !!dailyViewDateElement
+    });
+
     paymentMethodInputs.forEach(function (input) {
       input.addEventListener("change", syncUpiProofVisibility);
     });
@@ -515,10 +520,15 @@
     }
 
     function updateDailyViewDateDisplay() {
-      if (!dailyViewDateElement) return;
+      if (!dailyViewDateElement) {
+        console.error("Daily view date element not found");
+        return;
+      }
       var now = new Date();
       var options = { day: "numeric", month: "short", year: "numeric" };
-      dailyViewDateElement.textContent = now.toLocaleDateString(undefined, options);
+      var dateStr = now.toLocaleDateString(undefined, options);
+      dailyViewDateElement.textContent = dateStr;
+      console.log("Updated daily view date to:", dateStr);
     }
 
     function fetchDailyViews() {
@@ -556,6 +566,9 @@
           if (dailyViewCountElement) {
             dailyViewCountElement.textContent = "--";
           }
+        })
+        .finally(function () {
+          console.log("Daily view fetch attempt finished. Current element:", dailyViewCountElement, "Text:", dailyViewCountElement ? dailyViewCountElement.textContent : "null");
         });
     }
 
